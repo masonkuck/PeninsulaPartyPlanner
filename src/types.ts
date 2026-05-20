@@ -27,6 +27,8 @@ export interface Trip {
   id: string
   name: string
   stops: TripStop[]
+  startFromHome: boolean
+  returnHome: boolean
 }
 
 export interface HomeBase {

@@ -4,8 +4,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { SITES } from '../data/checkpoints'
 import { useAppState } from '../state/AppStateContext'
-import { CHECKPOINTS_BY_ID } from '../data/checkpoints'
-import { fetchRoute, colorForLeg, type RoutePoint, type RouteLeg } from '../lib/routing'
+import { fetchRoute, colorForLeg, type RouteLeg } from '../lib/routing'
+import { buildTripPlan } from '../lib/tripPlan'
 import type { Checkpoint } from '../types'
 
 // Fix default marker icon path issue with bundlers
@@ -44,19 +44,12 @@ export function MapView() {
   const [routeSummary, setRouteSummary] = useState<{ distanceMi: number; durationHr: number } | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const stopPoints = useMemo<RoutePoint[]>(() => {
-    if (!activeTrip) return []
-    const home: RoutePoint = { lat: state.homeBase.lat, lng: state.homeBase.lng }
-    const stops: RoutePoint[] = []
-    for (const s of activeTrip.stops) {
-      const cp = CHECKPOINTS_BY_ID.get(s.checkpointId)
-      if (!cp) continue
-      if (cp.region === 'Water') continue // skip routing through open water
-      stops.push({ lat: cp.lat, lng: cp.lng })
-    }
-    if (stops.length === 0) return []
-    return [home, ...stops, home]
+  const plan = useMemo(() => {
+    if (!activeTrip) return null
+    return buildTripPlan(activeTrip, state.homeBase)
   }, [activeTrip, state.homeBase])
+
+  const stopPoints = plan && plan.routingPoints.length >= 2 ? plan.routingPoints : []
 
   const effectiveKey = (import.meta.env.VITE_ORS_KEY as string | undefined) || ''
 
@@ -165,16 +158,23 @@ export function MapView() {
             {legs && legs.length > 1 && ` · ${legs.length} legs`}
           </div>
         )}
-        {legs && legs.length > 1 && !loading && (
+        {legs && legs.length > 0 && !loading && plan && (
           <div className="leg-legend">
-            {legs.map((leg, i) => {
-              const fromName = i === 0 ? 'Home' : activeTrip?.stops[i - 1] ? (CHECKPOINTS_BY_ID.get(activeTrip.stops[i - 1].checkpointId)?.siteName ?? `Stop ${i}`) : `Stop ${i}`
-              const toName = i === legs.length - 1 ? 'Home' : activeTrip?.stops[i] ? (CHECKPOINTS_BY_ID.get(activeTrip.stops[i].checkpointId)?.siteName ?? `Stop ${i + 1}`) : `Stop ${i + 1}`
+            {legs.map((leg, legIdx) => {
+              // Find the pair of anchors flanking this leg (the anchors that map to routingPoints[legIdx] and routingPoints[legIdx+1])
+              const fromAnchorIdx = plan.anchorRoutingIndex.lastIndexOf(legIdx)
+              const toAnchorIdx = plan.anchorRoutingIndex.indexOf(legIdx + 1)
+              const labelFor = (anchorIdx: number): string => {
+                if (anchorIdx < 0) return '?'
+                const a = plan.anchors[anchorIdx]
+                if (a.kind === 'home-start' || a.kind === 'home-end') return 'Home'
+                return a.cp.siteName
+              }
               return (
-                <div key={i} className="leg-legend__row">
-                  <span className="leg-legend__swatch" style={{ background: colorForLeg(i) }} />
+                <div key={legIdx} className="leg-legend__row">
+                  <span className="leg-legend__swatch" style={{ background: colorForLeg(legIdx) }} />
                   <span className="leg-legend__label">
-                    {fromName} → {toName}
+                    {labelFor(fromAnchorIdx)} → {labelFor(toAnchorIdx)}
                   </span>
                   <span className="leg-legend__meta">
                     {(leg.distanceMeters / 1609.34).toFixed(0)}mi · {(leg.durationSeconds / 3600).toFixed(1)}h

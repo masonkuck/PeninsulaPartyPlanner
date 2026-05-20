@@ -20,6 +20,28 @@ export interface RouteResult {
 
 const ORS_URL = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson'
 
+function haversineMeters(a: [number, number], b: [number, number]): number {
+  const R = 6371000
+  const [lat1, lng1] = a
+  const [lat2, lng2] = b
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dPhi = toRad(lat2 - lat1)
+  const dLambda = toRad(lng2 - lng1)
+  const phi1 = toRad(lat1)
+  const phi2 = toRad(lat2)
+  const x =
+    Math.sin(dPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
+}
+
+function polylineMeters(coords: [number, number][]): number {
+  let total = 0
+  for (let i = 1; i < coords.length; i++) {
+    total += haversineMeters(coords[i - 1], coords[i])
+  }
+  return total
+}
+
 export async function fetchRoute(apiKey: string, points: RoutePoint[]): Promise<RouteResult | null> {
   if (!apiKey) throw new Error('Missing OpenRouteService API key')
   if (points.length < 2) return null
@@ -56,24 +78,38 @@ export async function fetchRoute(apiKey: string, points: RoutePoint[]): Promise<
     allCoords.length - 1,
   ]
   const segments = (feature.properties?.segments as Array<{ distance?: number; duration?: number }> | undefined) ?? []
-
-  const legs: RouteLeg[] = []
-  for (let i = 0; i < wayPoints.length - 1; i++) {
-    const start = wayPoints[i]
-    const end = wayPoints[i + 1]
-    const seg = segments[i] ?? {}
-    legs.push({
-      coordinates: allCoords.slice(start, end + 1),
-      distanceMeters: seg.distance ?? 0,
-      durationSeconds: seg.duration ?? 0,
-    })
-  }
-
   const summary = feature.properties?.summary ?? {}
+  const totalDuration = (summary.duration as number | undefined) ?? 0
+
+  // ORS sometimes omits per-segment distance/duration when instructions=false.
+  // Fall back to: distance via Haversine on the geometry slice, duration pro-rated from the total.
+  const rawLegs = wayPoints.slice(0, -1).map((start, i) => {
+    const end = wayPoints[i + 1]
+    const coords = allCoords.slice(start, end + 1)
+    const seg = segments[i]
+    const distance = seg?.distance && seg.distance > 0 ? seg.distance : polylineMeters(coords)
+    return { coords, distance, segDuration: seg?.duration }
+  })
+
+  const totalDistance =
+    (summary.distance as number | undefined) ||
+    rawLegs.reduce((s, l) => s + l.distance, 0)
+
+  const legs: RouteLeg[] = rawLegs.map((l) => ({
+    coordinates: l.coords,
+    distanceMeters: l.distance,
+    durationSeconds:
+      l.segDuration && l.segDuration > 0
+        ? l.segDuration
+        : totalDuration > 0 && totalDistance > 0
+          ? totalDuration * (l.distance / totalDistance)
+          : 0,
+  }))
+
   return {
     legs,
-    totalDistanceMeters: summary.distance ?? legs.reduce((s, l) => s + l.distanceMeters, 0),
-    totalDurationSeconds: summary.duration ?? legs.reduce((s, l) => s + l.durationSeconds, 0),
+    totalDistanceMeters: totalDistance,
+    totalDurationSeconds: totalDuration || legs.reduce((s, l) => s + l.durationSeconds, 0),
   }
 }
 

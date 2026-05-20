@@ -8,12 +8,16 @@ interface AppStateContextValue {
   activeTrip: Trip | null
   totalScore: number
   tripScore: (tripId: string) => number
+  /** Returns the trip ID that "claims" (scores) a given checkpoint, or null if not in any trip. */
+  claimingTripId: (checkpointId: string) => string | null
   addTrip: (name?: string) => string
   renameTrip: (tripId: string, name: string) => void
   deleteTrip: (tripId: string) => void
   setActiveTrip: (tripId: string) => void
   toggleCheckpoint: (checkpointId: string) => void
   reorderActiveTrip: (orderedIds: string[]) => void
+  setTripStartFromHome: (tripId: string, value: boolean) => void
+  setTripReturnHome: (tripId: string, value: boolean) => void
   setHomeBase: (home: HomeBase) => void
   isCheckpointInActiveTrip: (checkpointId: string) => boolean
 }
@@ -24,13 +28,31 @@ function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-function scoreForTrip(trip: Trip): number {
-  let sum = 0
-  for (const s of trip.stops) {
-    const cp = CHECKPOINTS_BY_ID.get(s.checkpointId)
-    if (cp) sum += cp.points
+function scoreUniqueAcrossTrips(trips: Trip[]): {
+  total: number
+  perTrip: Map<string, number>
+  claimedBy: Map<string, string>
+} {
+  const claimedBy = new Map<string, string>()
+  const perTrip = new Map<string, number>()
+  let total = 0
+  for (const trip of trips) {
+    let tripPoints = 0
+    for (const stop of trip.stops) {
+      if (claimedBy.has(stop.checkpointId)) continue
+      const cp = CHECKPOINTS_BY_ID.get(stop.checkpointId)
+      if (!cp) continue
+      claimedBy.set(stop.checkpointId, trip.id)
+      tripPoints += cp.points
+      total += cp.points
+    }
+    perTrip.set(trip.id, tripPoints)
   }
-  return sum
+  return { total, perTrip, claimedBy }
+}
+
+function makeTrip(id: string, name: string): Trip {
+  return { id, name, stops: [], startFromHome: true, returnHome: true }
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
@@ -50,30 +72,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }))
     }
 
+    const updateTrip = (tripId: string, mut: (t: Trip) => Trip) => {
+      setState((s) => ({
+        ...s,
+        trips: s.trips.map((t) => (t.id === tripId ? mut(t) : t)),
+      }))
+    }
+
+    const scoring = scoreUniqueAcrossTrips(state.trips)
+
     return {
       state,
       activeTrip,
-      totalScore: state.trips.reduce((sum, t) => sum + scoreForTrip(t), 0),
-      tripScore: (tripId) => {
-        const t = state.trips.find((x) => x.id === tripId)
-        return t ? scoreForTrip(t) : 0
-      },
+      totalScore: scoring.total,
+      tripScore: (tripId) => scoring.perTrip.get(tripId) ?? 0,
+      claimingTripId: (checkpointId) => scoring.claimedBy.get(checkpointId) ?? null,
       addTrip: (name) => {
         const id = uid('trip')
-        const newTrip: Trip = { id, name: name ?? `Trip ${state.trips.length + 1}`, stops: [] }
+        const newTrip = makeTrip(id, name ?? `Trip ${state.trips.length + 1}`)
         setState((s) => ({ ...s, trips: [...s.trips, newTrip], activeTripId: id }))
         return id
       },
       renameTrip: (tripId, name) => {
-        setState((s) => ({
-          ...s,
-          trips: s.trips.map((t) => (t.id === tripId ? { ...t, name } : t)),
-        }))
+        updateTrip(tripId, (t) => ({ ...t, name }))
       },
       deleteTrip: (tripId) => {
         setState((s) => {
           const remaining = s.trips.filter((t) => t.id !== tripId)
-          const trips = remaining.length > 0 ? remaining : [{ id: uid('trip'), name: 'Trip 1', stops: [] }]
+          const trips = remaining.length > 0 ? remaining : [makeTrip(uid('trip'), 'Trip 1')]
           const activeTripId = s.activeTripId === tripId ? trips[0].id : s.activeTripId
           return { ...s, trips, activeTripId }
         })
@@ -94,6 +120,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ...t,
           stops: orderedIds.map((id) => ({ checkpointId: id })),
         }))
+      },
+      setTripStartFromHome: (tripId, value) => {
+        updateTrip(tripId, (t) => ({ ...t, startFromHome: value }))
+      },
+      setTripReturnHome: (tripId, value) => {
+        updateTrip(tripId, (t) => ({ ...t, returnHome: value }))
       },
       setHomeBase: (home) => setState((s) => ({ ...s, homeBase: home })),
       isCheckpointInActiveTrip: (checkpointId) => {

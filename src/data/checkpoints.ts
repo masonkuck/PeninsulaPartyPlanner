@@ -138,6 +138,13 @@ export const ALL_CHECKPOINTS = SITES.flatMap((s) => s.checkpoints)
 
 export const CHECKPOINTS_BY_ID = new Map(ALL_CHECKPOINTS.map((c) => [c.id, c]))
 
+/** First mainland (LP/UP) checkpoint per site — used to substitute islands for routing. */
+export const MAINLAND_FOR_SITE = new Map<string, typeof ALL_CHECKPOINTS[number]>()
+for (const site of SITES) {
+  const mainland = site.checkpoints.find((c) => c.region === 'LP' || c.region === 'UP')
+  if (mainland) MAINLAND_FOR_SITE.set(site.id, mainland)
+}
+
 export const DEFAULT_HOME_BASE = {
   lat: 42.855651,
   lng: -85.664084,
