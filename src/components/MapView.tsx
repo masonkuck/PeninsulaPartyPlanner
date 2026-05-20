@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+
+const LEGS_COLLAPSED_KEY = 'ppp-legs-collapsed-v1'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -47,6 +49,23 @@ export function MapView() {
   const [segmentRoutes, setSegmentRoutes] = useState<(RouteResult | null)[] | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [legsCollapsed, setLegsCollapsed] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(LEGS_COLLAPSED_KEY)
+      if (stored !== null) return stored === 'true'
+    } catch {
+      // ignore
+    }
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 800px)').matches
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LEGS_COLLAPSED_KEY, String(legsCollapsed))
+    } catch {
+      // ignore
+    }
+  }, [legsCollapsed])
 
   const plan = useMemo(
     () => (activeTrip ? buildTripPlan(activeTrip, state.homeBase) : null),
@@ -248,12 +267,23 @@ export function MapView() {
           <div className="map-banner map-banner--error">Route error: {routeError}</div>
         )}
         {totals && !loading && (
-          <div className="map-banner map-banner--ok">
-            {totals.distanceMi.toFixed(0)} mi · {totals.durationHr.toFixed(1)} hr drive
-            {combinedLegs.length > 1 && ` · ${combinedLegs.length} legs`}
-          </div>
+          <button
+            type="button"
+            className="map-banner map-banner--ok map-banner--toggle"
+            onClick={() => setLegsCollapsed((c) => !c)}
+            aria-expanded={!legsCollapsed}
+            aria-label={legsCollapsed ? 'Show per-leg details' : 'Hide per-leg details'}
+          >
+            <span>
+              {totals.distanceMi.toFixed(0)} mi · {totals.durationHr.toFixed(1)} hr drive
+              {combinedLegs.length > 1 && ` · ${combinedLegs.length} legs`}
+            </span>
+            <span className="map-banner__chevron" aria-hidden="true">
+              {legsCollapsed ? '▾' : '▴'}
+            </span>
+          </button>
         )}
-        {combinedLegs.length > 0 && !loading && (
+        {combinedLegs.length > 0 && !loading && !legsCollapsed && (
           <div className="leg-legend">
             {combinedLegs.map((leg) => (
               <div key={leg.globalIndex} className="leg-legend__row">

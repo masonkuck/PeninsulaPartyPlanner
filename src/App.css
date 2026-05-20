@@ -659,6 +659,23 @@ body,
   color: #166534;
   font-weight: 600;
 }
+.map-banner--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.map-banner--toggle:hover {
+  background: #bbf7d0;
+}
+.map-banner__chevron {
+  color: #166534;
+  font-size: 0.7rem;
+  line-height: 1;
+}
 .leg-legend {
   background: #fff;
   border: 1px solid var(--border);
