@@ -39,5 +39,4 @@ export interface AppState {
   trips: Trip[]
   activeTripId: string | null
   homeBase: HomeBase
-  orsApiKey: string
 }

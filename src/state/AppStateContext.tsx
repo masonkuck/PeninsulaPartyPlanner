@@ -15,7 +15,6 @@ interface AppStateContextValue {
   toggleCheckpoint: (checkpointId: string) => void
   reorderActiveTrip: (orderedIds: string[]) => void
   setHomeBase: (home: HomeBase) => void
-  setOrsApiKey: (key: string) => void
   isCheckpointInActiveTrip: (checkpointId: string) => boolean
 }
 
@@ -97,7 +96,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }))
       },
       setHomeBase: (home) => setState((s) => ({ ...s, homeBase: home })),
-      setOrsApiKey: (key) => setState((s) => ({ ...s, orsApiKey: key })),
       isCheckpointInActiveTrip: (checkpointId) => {
         const t = state.trips.find((x) => x.id === state.activeTripId)
         return t ? t.stops.some((s) => s.checkpointId === checkpointId) : false

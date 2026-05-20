@@ -58,7 +58,7 @@ export function MapView() {
     return [home, ...stops, home]
   }, [activeTrip, state.homeBase])
 
-  const effectiveKey = state.orsApiKey || (import.meta.env.VITE_ORS_KEY as string | undefined) || ''
+  const effectiveKey = (import.meta.env.VITE_ORS_KEY as string | undefined) || ''
 
   useEffect(() => {
     setRouteError(null)
@@ -146,7 +146,7 @@ export function MapView() {
       <div className="map-overlay">
         {!effectiveKey && (
           <div className="map-banner map-banner--info">
-            Add an OpenRouteService API key in Settings to see driving routes.
+            Routing is unavailable — no API key configured in this build.
           </div>
         )}
         {loading && <div className="map-banner">Calculating route…</div>}

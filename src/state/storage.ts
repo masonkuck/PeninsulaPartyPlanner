@@ -9,7 +9,6 @@ export const DEFAULT_STATE: AppState = {
   ],
   activeTripId: 'trip-default',
   homeBase: DEFAULT_HOME_BASE,
-  orsApiKey: '',
 }
 
 export function loadState(): AppState {
@@ -21,7 +20,6 @@ export function loadState(): AppState {
       trips: parsed.trips ?? DEFAULT_STATE.trips,
       activeTripId: parsed.activeTripId ?? DEFAULT_STATE.activeTripId,
       homeBase: parsed.homeBase ?? DEFAULT_STATE.homeBase,
-      orsApiKey: parsed.orsApiKey ?? '',
     }
   } catch {
     return DEFAULT_STATE

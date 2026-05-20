@@ -2,12 +2,11 @@ import { useState } from 'react'
 import { useAppState } from '../state/AppStateContext'
 
 export function Settings() {
-  const { state, setHomeBase, setOrsApiKey } = useAppState()
+  const { state, setHomeBase } = useAppState()
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState(state.homeBase.label)
   const [lat, setLat] = useState(String(state.homeBase.lat))
   const [lng, setLng] = useState(String(state.homeBase.lng))
-  const [apiKey, setApiKey] = useState(state.orsApiKey)
 
   const save = () => {
     const parsedLat = parseFloat(lat)
@@ -15,7 +14,6 @@ export function Settings() {
     if (Number.isFinite(parsedLat) && Number.isFinite(parsedLng)) {
       setHomeBase({ lat: parsedLat, lng: parsedLng, label: label.trim() || 'Home Base' })
     }
-    setOrsApiKey(apiKey.trim())
     setOpen(false)
   }
 
@@ -43,21 +41,6 @@ export function Settings() {
                 <input value={lng} onChange={(e) => setLng(e.target.value)} />
               </label>
             </div>
-
-            <label className="field">
-              <span>
-                OpenRouteService API Key{' '}
-                <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noreferrer">
-                  (get one free)
-                </a>
-              </span>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="paste key here"
-              />
-            </label>
 
             <div className="modal-actions">
               <button type="button" onClick={() => setOpen(false)}>Cancel</button>
