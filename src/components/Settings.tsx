@@ -98,9 +98,34 @@ export function Settings() {
                 Save
               </button>
             </div>
+
+            <BuildInfo />
           </div>
         </div>
       )}
     </>
+  )
+}
+
+function BuildInfo() {
+  const built = (() => {
+    try {
+      const d = new Date(__BUILD_TIME__)
+      return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    } catch {
+      return __BUILD_TIME__
+    }
+  })()
+  const commitUrl = `https://github.com/masonkuck/PeninsulaPartyPlanner/commit/${__APP_VERSION__}`
+  return (
+    <div className="build-info">
+      <span>
+        Version{' '}
+        <a href={commitUrl} target="_blank" rel="noreferrer">
+          <code>{__APP_VERSION__}</code>
+        </a>
+      </span>
+      <span>built {built}</span>
+    </div>
   )
 }
