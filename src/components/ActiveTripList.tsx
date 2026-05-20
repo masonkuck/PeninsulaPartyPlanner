@@ -73,6 +73,19 @@ function SortableStop({
             {routedAt && <span className="routed-at" title={routedAt}>routed via mainland</span>}
           </div>
         )}
+        {cp.warning && (
+          <div className="stop__warning">
+            ⚠ {cp.warning}
+            {cp.warningLink && (
+              <>
+                {' '}
+                <a href={cp.warningLink} target="_blank" rel="noreferrer">
+                  more info
+                </a>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <button
         type="button"

@@ -229,6 +229,19 @@ export function MapView() {
                     Ferry: {cp.ferryCostRoundTrip}
                   </>
                 )}
+                {cp.warning && (
+                  <div className="popup-warning">
+                    ⚠ {cp.warning}
+                    {cp.warningLink && (
+                      <>
+                        {' '}
+                        <a href={cp.warningLink} target="_blank" rel="noreferrer">
+                          more info
+                        </a>
+                      </>
+                    )}
+                  </div>
+                )}
               </Popup>
             </Marker>
           )),

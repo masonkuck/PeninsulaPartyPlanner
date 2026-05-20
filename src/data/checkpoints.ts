@@ -111,8 +111,8 @@ export const SITES: Site[] = [
     name: 'Manitou Islands',
     checkpoints: [
       { id: 'manitou-leland', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'Manitou Island Transit Dock — Leland', lat: 45.0238, lng: -85.7619, points: 10, region: 'LP' },
-      { id: 'manitou-north', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'North Manitou Island Dock', lat: 45.1214, lng: -85.9755, points: 21, region: 'Island' },
-      { id: 'manitou-south', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'South Manitou Island Dock', lat: 45.0122, lng: -86.0946, points: 21, region: 'Island' },
+      { id: 'manitou-north', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'North Manitou Island Dock', lat: 45.1214, lng: -85.9755, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLink: 'https://manitoutransit.com/rates-schedule/' },
+      { id: 'manitou-south', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'South Manitou Island Dock', lat: 45.0122, lng: -86.0946, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLink: 'https://manitoutransit.com/rates-schedule/' },
     ],
   },
   {

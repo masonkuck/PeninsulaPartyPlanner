@@ -67,6 +67,7 @@ export function CheckpointList() {
                           <div className="checkpoint__title">
                             <span>{cp.label}</span>
                             {badge && <span className={`badge ${badge.cls}`}>{badge.label}</span>}
+                            {cp.warning && <span className="badge badge--warning">⚠ Closed</span>}
                           </div>
                           <div className="checkpoint__meta">
                             <span className="points">{cp.points} pts</span>
@@ -74,6 +75,16 @@ export function CheckpointList() {
                               <span className="ferry-cost">Ferry {cp.ferryCostRoundTrip}</span>
                             )}
                           </div>
+                          {cp.warning && (
+                            <div className="checkpoint__warning" onClick={(e) => e.stopPropagation()}>
+                              {cp.warning}{' '}
+                              {cp.warningLink && (
+                                <a href={cp.warningLink} target="_blank" rel="noreferrer">
+                                  more info
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </li>
                     )
