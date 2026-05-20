@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import { SITES } from '../data/checkpoints'
 import { useAppState } from '../state/AppStateContext'
 import { CHECKPOINTS_BY_ID } from '../data/checkpoints'
-import { fetchRoute, type RoutePoint } from '../lib/routing'
+import { fetchRoute, colorForLeg, type RoutePoint, type RouteLeg } from '../lib/routing'
 import type { Checkpoint } from '../types'
 
 // Fix default marker icon path issue with bundlers
@@ -39,7 +39,7 @@ function colorFor(cp: Checkpoint): string {
 
 export function MapView() {
   const { state, activeTrip } = useAppState()
-  const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null)
+  const [legs, setLegs] = useState<RouteLeg[] | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [routeSummary, setRouteSummary] = useState<{ distanceMi: number; durationHr: number } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -63,7 +63,7 @@ export function MapView() {
   useEffect(() => {
     setRouteError(null)
     if (stopPoints.length < 2 || !effectiveKey) {
-      setRouteCoords(null)
+      setLegs(null)
       setRouteSummary(null)
       return
     }
@@ -72,16 +72,16 @@ export function MapView() {
     fetchRoute(effectiveKey, stopPoints)
       .then((r) => {
         if (cancelled || !r) return
-        setRouteCoords(r.coordinates)
+        setLegs(r.legs)
         setRouteSummary({
-          distanceMi: r.distanceMeters / 1609.34,
-          durationHr: r.durationSeconds / 3600,
+          distanceMi: r.totalDistanceMeters / 1609.34,
+          durationHr: r.totalDurationSeconds / 3600,
         })
       })
       .catch((e: Error) => {
         if (!cancelled) {
           setRouteError(e.message)
-          setRouteCoords(null)
+          setLegs(null)
           setRouteSummary(null)
         }
       })
@@ -138,9 +138,13 @@ export function MapView() {
           )),
         )}
 
-        {routeCoords && (
-          <Polyline positions={routeCoords} pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.85 }} />
-        )}
+        {legs?.map((leg, i) => (
+          <Polyline
+            key={i}
+            positions={leg.coordinates}
+            pathOptions={{ color: colorForLeg(i), weight: 5, opacity: 0.85 }}
+          />
+        ))}
       </MapContainer>
 
       <div className="map-overlay">
@@ -158,6 +162,26 @@ export function MapView() {
         {routeSummary && !loading && (
           <div className="map-banner map-banner--ok">
             {routeSummary.distanceMi.toFixed(0)} mi · {routeSummary.durationHr.toFixed(1)} hr drive
+            {legs && legs.length > 1 && ` · ${legs.length} legs`}
+          </div>
+        )}
+        {legs && legs.length > 1 && !loading && (
+          <div className="leg-legend">
+            {legs.map((leg, i) => {
+              const fromName = i === 0 ? 'Home' : activeTrip?.stops[i - 1] ? (CHECKPOINTS_BY_ID.get(activeTrip.stops[i - 1].checkpointId)?.siteName ?? `Stop ${i}`) : `Stop ${i}`
+              const toName = i === legs.length - 1 ? 'Home' : activeTrip?.stops[i] ? (CHECKPOINTS_BY_ID.get(activeTrip.stops[i].checkpointId)?.siteName ?? `Stop ${i + 1}`) : `Stop ${i + 1}`
+              return (
+                <div key={i} className="leg-legend__row">
+                  <span className="leg-legend__swatch" style={{ background: colorForLeg(i) }} />
+                  <span className="leg-legend__label">
+                    {fromName} → {toName}
+                  </span>
+                  <span className="leg-legend__meta">
+                    {(leg.distanceMeters / 1609.34).toFixed(0)}mi · {(leg.durationSeconds / 3600).toFixed(1)}h
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
