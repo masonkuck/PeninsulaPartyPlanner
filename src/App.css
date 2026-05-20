@@ -751,6 +751,31 @@ body,
   opacity: 0.5;
   cursor: not-allowed;
 }
+.locate-btn {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.55rem 0.8rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.locate-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+.locate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.locate-error {
+  margin: 0.4rem 0 0;
+}
 .build-info {
   display: flex;
   justify-content: space-between;

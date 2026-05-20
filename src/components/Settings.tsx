@@ -25,14 +25,47 @@ export function Settings() {
   const [label, setLabel] = useState(state.homeBase.label)
   const [lat, setLat] = useState(String(state.homeBase.lat))
   const [lng, setLng] = useState(String(state.homeBase.lng))
+  const [locating, setLocating] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setLabel(state.homeBase.label)
       setLat(String(state.homeBase.lat))
       setLng(String(state.homeBase.lng))
+      setLocationError(null)
     }
   }, [open, state.homeBase])
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by this browser.')
+      return
+    }
+    setLocating(true)
+    setLocationError(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(6))
+        setLng(pos.coords.longitude.toFixed(6))
+        setLabel('My Location')
+        setLocating(false)
+      },
+      (err) => {
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? 'Location permission denied.'
+            : err.code === err.POSITION_UNAVAILABLE
+              ? 'Could not determine your location.'
+              : err.code === err.TIMEOUT
+                ? 'Location request timed out.'
+                : 'Could not get your location.'
+        setLocationError(msg)
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  }
 
   const latError = validateLat(lat)
   const lngError = validateLng(lng)
@@ -86,6 +119,16 @@ export function Settings() {
                 {lngError && <span className="field__error">{lngError}</span>}
               </label>
             </div>
+
+            <button
+              type="button"
+              className="locate-btn"
+              onClick={useCurrentLocation}
+              disabled={locating}
+            >
+              {locating ? 'Locating…' : '📍 Use current location'}
+            </button>
+            {locationError && <p className="field__error locate-error">{locationError}</p>}
 
             <div className="modal-actions">
               <button type="button" onClick={() => setOpen(false)}>Cancel</button>
