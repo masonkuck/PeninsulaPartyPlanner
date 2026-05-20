@@ -167,7 +167,7 @@ export function ActiveTripList() {
     setTripStartFromHome,
     setTripReturnHome,
   } = useAppState()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const plan = useMemo(
     () => (activeTrip ? buildTripPlan(activeTrip, state.homeBase) : null),
