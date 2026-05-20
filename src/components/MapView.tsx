@@ -58,16 +58,18 @@ export function MapView() {
     return [home, ...stops, home]
   }, [activeTrip, state.homeBase])
 
+  const effectiveKey = state.orsApiKey || (import.meta.env.VITE_ORS_KEY as string | undefined) || ''
+
   useEffect(() => {
     setRouteError(null)
-    if (stopPoints.length < 2 || !state.orsApiKey) {
+    if (stopPoints.length < 2 || !effectiveKey) {
       setRouteCoords(null)
       setRouteSummary(null)
       return
     }
     let cancelled = false
     setLoading(true)
-    fetchRoute(state.orsApiKey, stopPoints)
+    fetchRoute(effectiveKey, stopPoints)
       .then((r) => {
         if (cancelled || !r) return
         setRouteCoords(r.coordinates)
@@ -89,7 +91,7 @@ export function MapView() {
     return () => {
       cancelled = true
     }
-  }, [stopPoints, state.orsApiKey])
+  }, [stopPoints, effectiveKey])
 
   const includedIds = new Set(activeTrip?.stops.map((s) => s.checkpointId) ?? [])
 
@@ -142,7 +144,7 @@ export function MapView() {
       </MapContainer>
 
       <div className="map-overlay">
-        {!state.orsApiKey && (
+        {!effectiveKey && (
           <div className="map-banner map-banner--info">
             Add an OpenRouteService API key in Settings to see driving routes.
           </div>
