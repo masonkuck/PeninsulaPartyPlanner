@@ -4,11 +4,10 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { SITES } from '../data/checkpoints'
 import { useAppState } from '../state/AppStateContext'
-import { fetchRoute, colorForLeg, type RouteLeg } from '../lib/routing'
+import { fetchRoute, colorForLeg, type RouteLeg, type RouteResult } from '../lib/routing'
 import { buildTripPlan } from '../lib/tripPlan'
 import type { Checkpoint } from '../types'
 
-// Fix default marker icon path issue with bundlers
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -18,6 +17,8 @@ L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 })
+
+const FERRY_COLOR = '#0ea5e9'
 
 function makeIcon(color: string, inTrip: boolean): L.DivIcon {
   const size = inTrip ? 28 : 20
@@ -31,60 +32,143 @@ function makeIcon(color: string, inTrip: boolean): L.DivIcon {
 }
 
 function colorFor(cp: Checkpoint): string {
-  if (cp.points === 21) return '#d97706' // amber
-  if (cp.outOfState) return '#6b7280' // gray
-  if (cp.region === 'UP') return '#0ea5e9' // sky
-  return '#16a34a' // green LP
+  if (cp.points === 21) return '#d97706'
+  if (cp.outOfState) return '#6b7280'
+  if (cp.region === 'UP') return '#0ea5e9'
+  return '#16a34a'
 }
+
+type CombinedLeg =
+  | { kind: 'land'; coords: [number, number][]; distanceMeters: number; durationSeconds: number; globalIndex: number; fromLabel: string; toLabel: string }
+  | { kind: 'ferry'; coords: [number, number][]; distanceMeters: number; globalIndex: number; fromLabel: string; toLabel: string }
 
 export function MapView() {
   const { state, activeTrip } = useAppState()
-  const [legs, setLegs] = useState<RouteLeg[] | null>(null)
+  const [segmentRoutes, setSegmentRoutes] = useState<(RouteResult | null)[] | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
-  const [routeSummary, setRouteSummary] = useState<{ distanceMi: number; durationHr: number } | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const plan = useMemo(() => {
-    if (!activeTrip) return null
-    return buildTripPlan(activeTrip, state.homeBase)
-  }, [activeTrip, state.homeBase])
-
-  const stopPoints = plan && plan.routingPoints.length >= 2 ? plan.routingPoints : []
+  const plan = useMemo(
+    () => (activeTrip ? buildTripPlan(activeTrip, state.homeBase) : null),
+    [activeTrip, state.homeBase],
+  )
 
   const effectiveKey = (import.meta.env.VITE_ORS_KEY as string | undefined) || ''
 
   useEffect(() => {
-    setRouteError(null)
-    if (stopPoints.length < 2 || !effectiveKey) {
-      setLegs(null)
-      setRouteSummary(null)
+    if (!plan || !effectiveKey) {
+      setSegmentRoutes(null)
+      setRouteError(null)
       return
     }
+    const routableSegments = plan.segments.filter((s) => s.routingPoints.length >= 2)
+    if (routableSegments.length === 0) {
+      setSegmentRoutes(null)
+      setRouteError(null)
+      return
+    }
+
     let cancelled = false
     setLoading(true)
-    fetchRoute(effectiveKey, stopPoints)
-      .then((r) => {
-        if (cancelled || !r) return
-        setLegs(r.legs)
-        setRouteSummary({
-          distanceMi: r.totalDistanceMeters / 1609.34,
-          durationHr: r.totalDurationSeconds / 3600,
-        })
+    setRouteError(null)
+    Promise.all(
+      plan.segments.map((seg) =>
+        seg.routingPoints.length >= 2 ? fetchRoute(effectiveKey, seg.routingPoints) : Promise.resolve(null),
+      ),
+    )
+      .then((results) => {
+        if (!cancelled) setSegmentRoutes(results)
       })
       .catch((e: Error) => {
         if (!cancelled) {
           setRouteError(e.message)
-          setLegs(null)
-          setRouteSummary(null)
+          setSegmentRoutes(null)
         }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
+
     return () => {
       cancelled = true
     }
-  }, [stopPoints, effectiveKey])
+  }, [plan, effectiveKey])
+
+  // Compose ordered legs (land + ferry) with global indices and labels
+  const combinedLegs = useMemo<CombinedLeg[]>(() => {
+    if (!plan || !segmentRoutes) return []
+    const out: CombinedLeg[] = []
+    let globalIdx = 0
+
+    const labelForSegmentBoundary = (
+      segmentEndingIdx: number,
+      side: 'end' | 'start',
+    ): string => {
+      // Find the anchor whose location matches this segment's last/first point.
+      const targetIdx = side === 'end' ? plan.segments[segmentEndingIdx].routingPoints.length - 1 : 0
+      for (let i = 0; i < plan.anchors.length; i++) {
+        const loc = plan.anchorLocation[i]
+        if (loc && loc.segment === segmentEndingIdx && loc.index === targetIdx) {
+          const a = plan.anchors[i]
+          if (a.kind === 'home-start' || a.kind === 'home-end') return 'Home'
+          return a.cp.siteName
+        }
+      }
+      return '?'
+    }
+
+    plan.segments.forEach((seg, segIdx) => {
+      const res = segmentRoutes[segIdx]
+      if (res) {
+        res.legs.forEach((leg: RouteLeg, i) => {
+          // Find from/to labels by matching routingPoints[i] / [i+1] back to anchors
+          const fromLabel = labelForSegmentPointIdx(plan, segIdx, i)
+          const toLabel = labelForSegmentPointIdx(plan, segIdx, i + 1)
+          out.push({
+            kind: 'land',
+            coords: leg.coordinates,
+            distanceMeters: leg.distanceMeters,
+            durationSeconds: leg.durationSeconds,
+            globalIndex: globalIdx,
+            fromLabel,
+            toLabel,
+          })
+          globalIdx++
+        })
+      }
+      // Ferry leg between this segment and the next (if any)
+      if (segIdx < plan.segments.length - 1) {
+        const last = seg.routingPoints[seg.routingPoints.length - 1]
+        const first = plan.segments[segIdx + 1].routingPoints[0]
+        if (last && first) {
+          out.push({
+            kind: 'ferry',
+            coords: [
+              [last.lat, last.lng],
+              [first.lat, first.lng],
+            ],
+            distanceMeters: haversineMi([last.lat, last.lng], [first.lat, first.lng]) * 1609.34,
+            globalIndex: globalIdx,
+            fromLabel: labelForSegmentBoundary(segIdx, 'end'),
+            toLabel: labelForSegmentBoundary(segIdx + 1, 'start'),
+          })
+          globalIdx++
+        }
+      }
+    })
+    return out
+  }, [plan, segmentRoutes])
+
+  const totals = useMemo(() => {
+    if (combinedLegs.length === 0) return null
+    let dist = 0
+    let dur = 0
+    for (const l of combinedLegs) {
+      dist += l.distanceMeters
+      if (l.kind === 'land') dur += l.durationSeconds
+    }
+    return { distanceMi: dist / 1609.34, durationHr: dur / 3600 }
+  }, [combinedLegs])
 
   const includedIds = new Set(activeTrip?.stops.map((s) => s.checkpointId) ?? [])
 
@@ -131,13 +215,26 @@ export function MapView() {
           )),
         )}
 
-        {legs?.map((leg, i) => (
-          <Polyline
-            key={i}
-            positions={leg.coordinates}
-            pathOptions={{ color: colorForLeg(i), weight: 5, opacity: 0.85 }}
-          />
-        ))}
+        {combinedLegs.map((leg) =>
+          leg.kind === 'land' ? (
+            <Polyline
+              key={`land-${leg.globalIndex}`}
+              positions={leg.coords}
+              pathOptions={{ color: colorForLeg(leg.globalIndex), weight: 5, opacity: 0.85 }}
+            />
+          ) : (
+            <Polyline
+              key={`ferry-${leg.globalIndex}`}
+              positions={leg.coords}
+              pathOptions={{
+                color: FERRY_COLOR,
+                weight: 3,
+                opacity: 0.75,
+                dashArray: '10 8',
+              }}
+            />
+          ),
+        )}
       </MapContainer>
 
       <div className="map-overlay">
@@ -148,43 +245,59 @@ export function MapView() {
         )}
         {loading && <div className="map-banner">Calculating route…</div>}
         {routeError && (
-          <div className="map-banner map-banner--error">
-            Route error: {routeError}
-          </div>
+          <div className="map-banner map-banner--error">Route error: {routeError}</div>
         )}
-        {routeSummary && !loading && (
+        {totals && !loading && (
           <div className="map-banner map-banner--ok">
-            {routeSummary.distanceMi.toFixed(0)} mi · {routeSummary.durationHr.toFixed(1)} hr drive
-            {legs && legs.length > 1 && ` · ${legs.length} legs`}
+            {totals.distanceMi.toFixed(0)} mi · {totals.durationHr.toFixed(1)} hr drive
+            {combinedLegs.length > 1 && ` · ${combinedLegs.length} legs`}
           </div>
         )}
-        {legs && legs.length > 0 && !loading && plan && (
+        {combinedLegs.length > 0 && !loading && (
           <div className="leg-legend">
-            {legs.map((leg, legIdx) => {
-              // Find the pair of anchors flanking this leg (the anchors that map to routingPoints[legIdx] and routingPoints[legIdx+1])
-              const fromAnchorIdx = plan.anchorRoutingIndex.lastIndexOf(legIdx)
-              const toAnchorIdx = plan.anchorRoutingIndex.indexOf(legIdx + 1)
-              const labelFor = (anchorIdx: number): string => {
-                if (anchorIdx < 0) return '?'
-                const a = plan.anchors[anchorIdx]
-                if (a.kind === 'home-start' || a.kind === 'home-end') return 'Home'
-                return a.cp.siteName
-              }
-              return (
-                <div key={legIdx} className="leg-legend__row">
-                  <span className="leg-legend__swatch" style={{ background: colorForLeg(legIdx) }} />
-                  <span className="leg-legend__label">
-                    {labelFor(fromAnchorIdx)} → {labelFor(toAnchorIdx)}
-                  </span>
-                  <span className="leg-legend__meta">
-                    {(leg.distanceMeters / 1609.34).toFixed(0)}mi · {(leg.durationSeconds / 3600).toFixed(1)}h
-                  </span>
-                </div>
-              )
-            })}
+            {combinedLegs.map((leg) => (
+              <div key={leg.globalIndex} className="leg-legend__row">
+                <span
+                  className={`leg-legend__swatch${leg.kind === 'ferry' ? ' leg-legend__swatch--ferry' : ''}`}
+                  style={{ background: leg.kind === 'land' ? colorForLeg(leg.globalIndex) : FERRY_COLOR }}
+                />
+                <span className="leg-legend__label">
+                  {leg.kind === 'ferry' ? '⛴ ' : ''}
+                  {leg.fromLabel} → {leg.toLabel}
+                </span>
+                <span className="leg-legend__meta">
+                  {(leg.distanceMeters / 1609.34).toFixed(0)}mi
+                  {leg.kind === 'land' && ` · ${(leg.durationSeconds / 3600).toFixed(1)}h`}
+                </span>
+              </div>
+            ))}
           </div>
         )}
       </div>
     </div>
   )
+}
+
+function labelForSegmentPointIdx(plan: ReturnType<typeof buildTripPlan>, segment: number, index: number): string {
+  for (let i = 0; i < plan.anchors.length; i++) {
+    const loc = plan.anchorLocation[i]
+    if (loc && loc.segment === segment && loc.index === index) {
+      const a = plan.anchors[i]
+      if (a.kind === 'home-start' || a.kind === 'home-end') return 'Home'
+      return a.cp.siteName
+    }
+  }
+  return '?'
+}
+
+function haversineMi(a: [number, number], b: [number, number]): number {
+  const R = 3958.8
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dPhi = toRad(b[0] - a[0])
+  const dLambda = toRad(b[1] - a[1])
+  const phi1 = toRad(a[0])
+  const phi2 = toRad(b[0])
+  const x =
+    Math.sin(dPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }

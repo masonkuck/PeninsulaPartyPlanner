@@ -7,13 +7,15 @@ export type Anchor =
   | { kind: 'stop'; stopIndex: number; cp: Checkpoint }
   | { kind: 'home-end' }
 
-export interface TripPlan {
-  /** Coordinates to send to the routing engine. */
+export interface TripSegment {
   routingPoints: RoutePoint[]
-  /** Anchors in display order. */
+}
+
+export interface TripPlan {
+  segments: TripSegment[]
   anchors: Anchor[]
-  /** For each anchor, the index it maps to in routingPoints, or null if it doesn't contribute one (e.g. Water stop, or merged duplicate). */
-  anchorRoutingIndex: (number | null)[]
+  /** For each anchor: where it lives in the segment graph, or null if it doesn't contribute a routing point (Water stops). */
+  anchorLocation: ({ segment: number; index: number } | null)[]
 }
 
 const COORD_EPSILON = 1e-6
@@ -22,55 +24,153 @@ function sameCoord(a: RoutePoint, b: RoutePoint): boolean {
   return Math.abs(a.lat - b.lat) < COORD_EPSILON && Math.abs(a.lng - b.lng) < COORD_EPSILON
 }
 
+function isMainlandOfSite(cp: Checkpoint, siteId: string): boolean {
+  return cp.siteId === siteId && cp.region !== 'Water' && cp.region !== 'Island'
+}
+
+function coordOf(cp: Checkpoint): RoutePoint {
+  return {
+    lat: cp.routingLat ?? cp.lat,
+    lng: cp.routingLng ?? cp.lng,
+  }
+}
+
 function routingCoordFor(cp: Checkpoint): RoutePoint | null {
   if (cp.region === 'Water') return null
-  if (cp.region === 'Island') {
+  // Islands and ferry-required out-of-state stops (e.g. Walpole Island, Canada) — route to the mainland dock.
+  if (cp.region === 'Island' || (cp.region === 'X' && cp.points === 21)) {
     const ml = MAINLAND_FOR_SITE.get(cp.siteId)
-    if (ml) return { lat: ml.lat, lng: ml.lng }
+    if (ml) return coordOf(ml)
   }
-  return { lat: cp.lat, lng: cp.lng }
+  return coordOf(cp)
 }
 
 export function buildTripPlan(trip: Trip, homeBase: HomeBase): TripPlan {
   const home: RoutePoint = { lat: homeBase.lat, lng: homeBase.lng }
-  const routingPoints: RoutePoint[] = []
+
+  // First build the flat anchor list
   const anchors: Anchor[] = []
-  const anchorRoutingIndex: (number | null)[] = []
-
-  const push = (anchor: Anchor, coord: RoutePoint | null) => {
-    anchors.push(anchor)
-    if (!coord) {
-      anchorRoutingIndex.push(null)
-      return
-    }
-    const last = routingPoints[routingPoints.length - 1]
-    if (last && sameCoord(last, coord)) {
-      anchorRoutingIndex.push(routingPoints.length - 1)
-      return
-    }
-    routingPoints.push(coord)
-    anchorRoutingIndex.push(routingPoints.length - 1)
-  }
-
-  if (trip.startFromHome) push({ kind: 'home-start' }, home)
+  if (trip.startFromHome) anchors.push({ kind: 'home-start' })
   for (let i = 0; i < trip.stops.length; i++) {
     const cp = CHECKPOINTS_BY_ID.get(trip.stops[i].checkpointId)
     if (!cp) continue
-    push({ kind: 'stop', stopIndex: i, cp }, routingCoordFor(cp))
+    anchors.push({ kind: 'stop', stopIndex: i, cp })
   }
-  if (trip.returnHome) push({ kind: 'home-end' }, home)
+  if (trip.returnHome) anchors.push({ kind: 'home-end' })
 
-  return { routingPoints, anchors, anchorRoutingIndex }
+  const segments: TripSegment[] = [{ routingPoints: [] }]
+  const anchorLocation: ({ segment: number; index: number } | null)[] = []
+  let currentSegIdx = 0
+
+  const pushToSegment = (coord: RoutePoint) => {
+    const seg = segments[currentSegIdx]
+    const last = seg.routingPoints[seg.routingPoints.length - 1]
+    if (last && sameCoord(last, coord)) {
+      anchorLocation.push({ segment: currentSegIdx, index: seg.routingPoints.length - 1 })
+      return
+    }
+    seg.routingPoints.push(coord)
+    anchorLocation.push({ segment: currentSegIdx, index: seg.routingPoints.length - 1 })
+  }
+
+  for (let i = 0; i < anchors.length; i++) {
+    const anchor = anchors[i]
+    if (anchor.kind === 'home-start' || anchor.kind === 'home-end') {
+      pushToSegment(home)
+      continue
+    }
+    const cp = anchor.cp
+    if (cp.region === 'Water') {
+      // Ferry split only if surrounded by two different mainland docks of the same site
+      const prev = anchors[i - 1]
+      const next = anchors[i + 1]
+      const prevIsMainland = prev?.kind === 'stop' && isMainlandOfSite(prev.cp, cp.siteId)
+      const nextIsMainland = next?.kind === 'stop' && isMainlandOfSite(next.cp, cp.siteId)
+      const isFerryCrossing =
+        prevIsMainland && nextIsMainland && prev.cp.id !== next.cp.id
+      if (isFerryCrossing) {
+        segments.push({ routingPoints: [] })
+        currentSegIdx = segments.length - 1
+      }
+      anchorLocation.push(null)
+      continue
+    }
+    const coord = routingCoordFor(cp)
+    if (coord) pushToSegment(coord)
+    else anchorLocation.push(null)
+  }
+
+  // Drop any trailing empty segments
+  while (segments.length > 0 && segments[segments.length - 1].routingPoints.length === 0) {
+    segments.pop()
+  }
+
+  return { segments, anchors, anchorLocation }
 }
 
-/**
- * Given the plan and a pair of consecutive anchor positions, return the leg index
- * (into the route's legs[]) that connects them, or null if no leg.
- */
-export function legIndexBetweenAnchors(plan: TripPlan, anchorPos: number): number | null {
-  const a = plan.anchorRoutingIndex[anchorPos]
-  const b = plan.anchorRoutingIndex[anchorPos + 1]
+export type LegBetween =
+  | { kind: 'land'; segment: number; indexInSegment: number; globalLegIndex: number }
+  | { kind: 'ferry'; fromSegment: number; toSegment: number; globalLegIndex: number }
+  | null
+
+/** Count of land legs and ferry legs preceding global leg index calculation. */
+function legCountBefore(plan: TripPlan, segment: number, indexInSegment: number): number {
+  // Sum land legs in earlier segments + ferries before this segment + indexInSegment
+  let count = 0
+  for (let s = 0; s < segment; s++) {
+    count += Math.max(0, plan.segments[s].routingPoints.length - 1)
+  }
+  count += segment // one ferry per segment boundary before this segment
+  count += indexInSegment
+  return count
+}
+
+export function legBetweenAnchors(plan: TripPlan, anchorPos: number): LegBetween {
+  const a = plan.anchorLocation[anchorPos]
+  const b = plan.anchorLocation[anchorPos + 1]
+
+  // If a is null (Water anchor): the leg lies between the previous non-null location and `b`
+  if (a == null && b != null) {
+    let prevLoc: { segment: number; index: number } | null = null
+    for (let i = anchorPos - 1; i >= 0; i--) {
+      const loc = plan.anchorLocation[i]
+      if (loc) {
+        prevLoc = loc
+        break
+      }
+    }
+    if (prevLoc && prevLoc.segment !== b.segment) {
+      // Ferry crossing — global index = end of fromSegment's land legs
+      let globalIdx = 0
+      for (let s = 0; s < prevLoc.segment; s++) {
+        globalIdx += Math.max(0, plan.segments[s].routingPoints.length - 1)
+      }
+      globalIdx += prevLoc.segment // prior ferries
+      globalIdx += Math.max(0, plan.segments[prevLoc.segment].routingPoints.length - 1)
+      return {
+        kind: 'ferry',
+        fromSegment: prevLoc.segment,
+        toSegment: b.segment,
+        globalLegIndex: globalIdx,
+      }
+    }
+    return null
+  }
+
   if (a == null || b == null) return null
-  if (b > a) return a // leg `a` connects routingPoints[a] → routingPoints[a+1]; for b=a+1 this is exact
+
+  if (a.segment === b.segment) {
+    if (b.index > a.index) {
+      return {
+        kind: 'land',
+        segment: a.segment,
+        indexInSegment: a.index,
+        globalLegIndex: legCountBefore(plan, a.segment, a.index),
+      }
+    }
+    return null
+  }
+
+  // Shouldn't happen given pushToSegment dedup, but be safe
   return null
 }

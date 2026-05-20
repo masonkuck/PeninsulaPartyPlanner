@@ -18,6 +18,7 @@ interface AppStateContextValue {
   reorderActiveTrip: (orderedIds: string[]) => void
   setTripStartFromHome: (tripId: string, value: boolean) => void
   setTripReturnHome: (tripId: string, value: boolean) => void
+  setTripStops: (tripId: string, checkpointIds: string[]) => void
   setHomeBase: (home: HomeBase) => void
   isCheckpointInActiveTrip: (checkpointId: string) => boolean
 }
@@ -126,6 +127,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       },
       setTripReturnHome: (tripId, value) => {
         updateTrip(tripId, (t) => ({ ...t, returnHome: value }))
+      },
+      setTripStops: (tripId, checkpointIds) => {
+        updateTrip(tripId, (t) => ({
+          ...t,
+          stops: checkpointIds.map((id) => ({ checkpointId: id })),
+        }))
       },
       setHomeBase: (home) => setState((s) => ({ ...s, homeBase: home })),
       isCheckpointInActiveTrip: (checkpointId) => {

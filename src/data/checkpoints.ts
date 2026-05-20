@@ -5,8 +5,8 @@ export const SITES: Site[] = [
     id: 'ss-badger',
     name: 'SS Badger',
     checkpoints: [
-      { id: 'ss-badger-ludington', siteId: 'ss-badger', siteName: 'SS Badger', label: 'Ferry Dock — Ludington', lat: 43.9491, lng: -86.4511, points: 10, region: 'LP' },
-      { id: 'ss-badger-manitowoc', siteId: 'ss-badger', siteName: 'SS Badger', label: 'Ferry Dock — Manitowoc, WI', lat: 44.0902, lng: -87.6512, points: 10, region: 'X', outOfState: true },
+      { id: 'ss-badger-ludington', siteId: 'ss-badger', siteName: 'SS Badger', label: 'Ferry Dock — Ludington', lat: 43.9491, lng: -86.4511, routingLat: 43.9555, routingLng: -86.4530, points: 10, region: 'LP' },
+      { id: 'ss-badger-manitowoc', siteId: 'ss-badger', siteName: 'SS Badger', label: 'Ferry Dock — Manitowoc, WI', lat: 44.0902, lng: -87.6512, routingLat: 44.0944, routingLng: -87.6650, points: 10, region: 'X', outOfState: true },
       { id: 'ss-badger-water', siteId: 'ss-badger', siteName: 'SS Badger', label: 'On the Water', lat: 43.9527, lng: -86.4694, points: 21, region: 'Water', ferryCostRoundTrip: '$292' },
     ],
   },
@@ -14,8 +14,8 @@ export const SITES: Site[] = [
     id: 'lake-express',
     name: 'Lake Express',
     checkpoints: [
-      { id: 'lake-express-muskegon', siteId: 'lake-express', siteName: 'Lake Express', label: 'Ferry — Muskegon', lat: 43.2195, lng: -86.2918, points: 10, region: 'LP' },
-      { id: 'lake-express-milwaukee', siteId: 'lake-express', siteName: 'Lake Express', label: 'Ferry Dock — Milwaukee, WI', lat: 43.0037, lng: -87.8858, points: 10, region: 'X', outOfState: true },
+      { id: 'lake-express-muskegon', siteId: 'lake-express', siteName: 'Lake Express', label: 'Ferry — Muskegon', lat: 43.2195, lng: -86.2918, routingLat: 43.2240, routingLng: -86.2820, points: 10, region: 'LP' },
+      { id: 'lake-express-milwaukee', siteId: 'lake-express', siteName: 'Lake Express', label: 'Ferry Dock — Milwaukee, WI', lat: 43.0037, lng: -87.8858, routingLat: 43.0091, routingLng: -87.8975, points: 10, region: 'X', outOfState: true },
       { id: 'lake-express-water', siteId: 'lake-express', siteName: 'Lake Express', label: 'On the Water', lat: 43.2248, lng: -86.3475, points: 21, region: 'Water', ferryCostRoundTrip: '$367' },
     ],
   },
@@ -127,8 +127,8 @@ export const SITES: Site[] = [
     id: 'isle-royale',
     name: 'Isle Royale',
     checkpoints: [
-      { id: 'isle-royale-mainland', siteId: 'isle-royale', siteName: 'Isle Royale', label: 'Ferry Dock — Mainland', lat: 47.4702, lng: -87.8908, points: 10, region: 'UP' },
-      { id: 'isle-royale-houghton', siteId: 'isle-royale', siteName: 'Isle Royale', label: 'Visitors Center — Houghton', lat: 47.1229, lng: -88.5637, points: 10, region: 'UP' },
+      { id: 'isle-royale-mainland', siteId: 'isle-royale', siteName: 'Isle Royale', label: 'Ferry Dock — Mainland', lat: 47.4702, lng: -87.8908, routingLat: 47.4685, routingLng: -87.8810, points: 10, region: 'UP' },
+      { id: 'isle-royale-houghton', siteId: 'isle-royale', siteName: 'Isle Royale', label: 'Visitors Center — Houghton', lat: 47.1229, lng: -88.5637, routingLat: 47.1240, routingLng: -88.5680, points: 10, region: 'UP' },
       { id: 'isle-royale-island', siteId: 'isle-royale', siteName: 'Isle Royale', label: 'Ferry Dock — Island', lat: 48.1458, lng: -88.4860, points: 21, region: 'Island', ferryCostRoundTrip: '$175' },
     ],
   },

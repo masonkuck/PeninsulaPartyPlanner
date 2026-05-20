@@ -7,6 +7,11 @@ export interface Checkpoint {
   label: string
   lat: number
   lng: number
+  /** Optional override coordinates used for routing only (display still uses lat/lng).
+   * Set when the marker's dock coord snaps to a ferry-tagged road in OSM and ORS
+   * can't reach it once ferries are excluded. */
+  routingLat?: number
+  routingLng?: number
   points: number
   region: Region
   ferryCostRoundTrip?: string

@@ -49,6 +49,12 @@ export async function fetchRoute(apiKey: string, points: RoutePoint[]): Promise<
   const body = {
     coordinates: points.map((p) => [p.lng, p.lat]),
     instructions: false,
+    // OSM has the SS Badger and Lake Express crossings tagged as ferry routes; without
+    // this ORS would happily "drive" across Lake Michigan instead of going around.
+    options: { avoid_features: ['ferries'] },
+    // -1 = no snap radius limit. Some dock coords sit right at a ferry terminal which
+    // can otherwise fail to resolve to a routable road when ferries are excluded.
+    radiuses: points.map(() => -1),
   }
 
   const res = await fetch(ORS_URL, {

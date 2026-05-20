@@ -17,7 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useAppState } from '../state/AppStateContext'
 import { CHECKPOINTS_BY_ID, MAINLAND_FOR_SITE } from '../data/checkpoints'
 import { colorForLeg } from '../lib/routing'
-import { buildTripPlan, legIndexBetweenAnchors } from '../lib/tripPlan'
+import { buildTripPlan, legBetweenAnchors } from '../lib/tripPlan'
 
 function SortableStop({
   id,
@@ -115,12 +115,12 @@ function HomeCard({
   )
 }
 
-function LegBar({ color, index }: { color: string; index: number }) {
+function LegBar({ color, index, ferry }: { color: string; index: number; ferry?: boolean }) {
   return (
-    <li className="leg-bar" aria-hidden="true">
+    <li className={`leg-bar${ferry ? ' leg-bar--ferry' : ''}`} aria-hidden="true">
       <span className="leg-bar__line" style={{ background: color }} />
       <span className="leg-bar__num" style={{ background: color }}>
-        {index + 1}
+        {ferry ? '⛴' : index + 1}
       </span>
       <span className="leg-bar__line" style={{ background: color }} />
     </li>
@@ -216,13 +216,13 @@ export function ActiveTripList() {
       )
     } else {
       const id = anchor.cp.id
-      const routingIdx = plan.anchorRoutingIndex[p]
+      const location = plan.anchorLocation[p]
       let routedAt: string | null = null
       if (anchor.cp.region === 'Island') {
         const ml = MAINLAND_FOR_SITE.get(anchor.cp.siteId)
         if (ml) routedAt = ml.label
       }
-      if (routingIdx === null && anchor.cp.region === 'Water') {
+      if (location === null && anchor.cp.region === 'Water') {
         renderItems.push(<SkippedStop key={id} id={id} index={anchor.stopIndex} />)
       } else {
         renderItems.push(
@@ -233,10 +233,23 @@ export function ActiveTripList() {
 
     // Leg bar between this anchor and the next one (if a real leg exists)
     if (p < plan.anchors.length - 1) {
-      const legIdx = legIndexBetweenAnchors(plan, p)
-      if (legIdx !== null) {
+      const leg = legBetweenAnchors(plan, p)
+      if (leg?.kind === 'land') {
         renderItems.push(
-          <LegBar key={`leg-${p}`} color={colorForLeg(legIdx)} index={legIdx} />,
+          <LegBar
+            key={`leg-${p}`}
+            color={colorForLeg(leg.globalLegIndex)}
+            index={leg.globalLegIndex}
+          />,
+        )
+      } else if (leg?.kind === 'ferry') {
+        renderItems.push(
+          <LegBar
+            key={`ferry-${p}`}
+            color="#0ea5e9"
+            index={leg.globalLegIndex}
+            ferry
+          />,
         )
       }
     }
