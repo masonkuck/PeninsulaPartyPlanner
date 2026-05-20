@@ -491,10 +491,28 @@ body,
   color: var(--text-muted);
 }
 .field input {
+  width: 100%;
   padding: 0.5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
+  outline: none;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+.field__input--invalid {
+  border-color: var(--danger) !important;
+}
+.field__input--invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2) !important;
+}
+.field__error {
+  color: var(--danger) !important;
+  font-size: 0.72rem;
+  margin-top: 0.1rem;
 }
 .field-row {
   display: grid;
@@ -518,6 +536,10 @@ body,
 .modal-actions button.primary {
   background: var(--accent);
   color: #fff;
+}
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 800px) {

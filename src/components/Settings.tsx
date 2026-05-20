@@ -1,5 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppState } from '../state/AppStateContext'
+
+function validateLat(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return 'Required'
+  const n = Number(trimmed)
+  if (!Number.isFinite(n)) return 'Must be a number'
+  if (n < -90 || n > 90) return 'Must be between -90 and 90'
+  return null
+}
+
+function validateLng(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return 'Required'
+  const n = Number(trimmed)
+  if (!Number.isFinite(n)) return 'Must be a number'
+  if (n < -180 || n > 180) return 'Must be between -180 and 180'
+  return null
+}
 
 export function Settings() {
   const { state, setHomeBase } = useAppState()
@@ -8,12 +26,25 @@ export function Settings() {
   const [lat, setLat] = useState(String(state.homeBase.lat))
   const [lng, setLng] = useState(String(state.homeBase.lng))
 
-  const save = () => {
-    const parsedLat = parseFloat(lat)
-    const parsedLng = parseFloat(lng)
-    if (Number.isFinite(parsedLat) && Number.isFinite(parsedLng)) {
-      setHomeBase({ lat: parsedLat, lng: parsedLng, label: label.trim() || 'Home Base' })
+  useEffect(() => {
+    if (open) {
+      setLabel(state.homeBase.label)
+      setLat(String(state.homeBase.lat))
+      setLng(String(state.homeBase.lng))
     }
+  }, [open, state.homeBase])
+
+  const latError = validateLat(lat)
+  const lngError = validateLng(lng)
+  const canSave = !latError && !lngError
+
+  const save = () => {
+    if (!canSave) return
+    setHomeBase({
+      lat: Number(lat),
+      lng: Number(lng),
+      label: label.trim() || 'Home Base',
+    })
     setOpen(false)
   }
 
@@ -34,17 +65,38 @@ export function Settings() {
             <div className="field-row">
               <label className="field">
                 <span>Latitude</span>
-                <input value={lat} onChange={(e) => setLat(e.target.value)} />
+                <input
+                  inputMode="decimal"
+                  value={lat}
+                  onChange={(e) => setLat(e.target.value)}
+                  className={latError ? 'field__input--invalid' : ''}
+                  aria-invalid={!!latError}
+                />
+                {latError && <span className="field__error">{latError}</span>}
               </label>
               <label className="field">
                 <span>Longitude</span>
-                <input value={lng} onChange={(e) => setLng(e.target.value)} />
+                <input
+                  inputMode="decimal"
+                  value={lng}
+                  onChange={(e) => setLng(e.target.value)}
+                  className={lngError ? 'field__input--invalid' : ''}
+                  aria-invalid={!!lngError}
+                />
+                {lngError && <span className="field__error">{lngError}</span>}
               </label>
             </div>
 
             <div className="modal-actions">
               <button type="button" onClick={() => setOpen(false)}>Cancel</button>
-              <button type="button" className="primary" onClick={save}>Save</button>
+              <button
+                type="button"
+                className="primary"
+                onClick={save}
+                disabled={!canSave}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
