@@ -16,8 +16,10 @@ export interface Checkpoint {
   region: Region
   ferryCostRoundTrip?: string
   outOfState?: boolean
-  /** Optional warning shown alongside the stop (e.g., closures). */
+  /** Optional warning shown alongside the stop (e.g., closures, ferry notes). */
   warning?: string
+  /** Short badge label that summarizes the warning (defaults to "Note"). */
+  warningLabel?: string
   /** Optional URL the warning links to for more info. */
   warningLink?: string
 }

@@ -71,8 +71,8 @@ export const SITES: Site[] = [
     id: 'ironton-ferry',
     name: 'Ironton Ferry',
     checkpoints: [
-      { id: 'ironton-west', siteId: 'ironton-ferry', siteName: 'Ironton Ferry', label: 'West Landing', lat: 45.2562, lng: -85.1857, points: 10, region: 'LP', ferryCostRoundTrip: '$5' },
-      { id: 'ironton-east', siteId: 'ironton-ferry', siteName: 'Ironton Ferry', label: 'East Landing', lat: 45.2559, lng: -85.1822, points: 10, region: 'LP', ferryCostRoundTrip: '$5' },
+      { id: 'ironton-west', siteId: 'ironton-ferry', siteName: 'Ironton Ferry', label: 'West Landing', lat: 45.2562, lng: -85.1857, points: 10, region: 'LP', ferryCostRoundTrip: '$5', warning: 'The Ironton Ferry crosses Lake Charlevoix in ~4 min. This planner routes by road around the lake (~30 min longer) — if you take the ferry, your actual ride time will be shorter than shown.', warningLabel: 'Ferry shortcut' },
+      { id: 'ironton-east', siteId: 'ironton-ferry', siteName: 'Ironton Ferry', label: 'East Landing', lat: 45.2559, lng: -85.1822, points: 10, region: 'LP', ferryCostRoundTrip: '$5', warning: 'The Ironton Ferry crosses Lake Charlevoix in ~4 min. This planner routes by road around the lake (~30 min longer) — if you take the ferry, your actual ride time will be shorter than shown.', warningLabel: 'Ferry shortcut' },
     ],
   },
   {
@@ -118,8 +118,8 @@ export const SITES: Site[] = [
     name: 'Manitou Islands',
     checkpoints: [
       { id: 'manitou-leland', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'Manitou Island Transit Dock — Leland', lat: 45.0238, lng: -85.7619, points: 10, region: 'LP' },
-      { id: 'manitou-north', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'North Manitou Island Dock', lat: 45.1214, lng: -85.9755, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLink: 'https://manitoutransit.com/rates-schedule/' },
-      { id: 'manitou-south', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'South Manitou Island Dock', lat: 45.0122, lng: -86.0946, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLink: 'https://manitoutransit.com/rates-schedule/' },
+      { id: 'manitou-north', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'North Manitou Island Dock', lat: 45.1214, lng: -85.9755, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLabel: 'Closed', warningLink: 'https://manitoutransit.com/rates-schedule/' },
+      { id: 'manitou-south', siteId: 'manitou-islands', siteName: 'Manitou Islands', label: 'South Manitou Island Dock', lat: 45.0122, lng: -86.0946, points: 21, region: 'Island', warning: 'Closed for the entire 2026 season — Manitou Island Transit is not running any trips.', warningLabel: 'Closed', warningLink: 'https://manitoutransit.com/rates-schedule/' },
     ],
   },
   {

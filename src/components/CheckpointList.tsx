@@ -67,7 +67,7 @@ export function CheckpointList() {
                           <div className="checkpoint__title">
                             <span>{cp.label}</span>
                             {badge && <span className={`badge ${badge.cls}`}>{badge.label}</span>}
-                            {cp.warning && <span className="badge badge--warning">⚠ Closed</span>}
+                            {cp.warning && <span className="badge badge--warning">⚠ {cp.warningLabel ?? 'Note'}</span>}
                           </div>
                           <div className="checkpoint__meta">
                             <span className="points">{cp.points} pts</span>
