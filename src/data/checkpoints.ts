@@ -107,6 +107,13 @@ export const SITES: Site[] = [
     ],
   },
   {
+    id: 'dealership',
+    name: 'BMW Dealership',
+    checkpoints: [
+      { id: 'dealership-check', siteId: 'dealership', siteName: 'BMW Dealership', label: 'BMW Dealership', lat: 42.855651, lng: -85.664084, points: 10, region: 'LP' },
+    ],
+  },
+  {
     id: 'manitou-islands',
     name: 'Manitou Islands',
     checkpoints: [
