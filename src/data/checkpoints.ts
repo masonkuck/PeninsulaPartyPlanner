@@ -80,7 +80,7 @@ export const SITES: Site[] = [
     name: 'Bois Blanc Island',
     checkpoints: [
       { id: 'bois-blanc-mainland', siteId: 'bois-blanc', siteName: 'Bois Blanc Island', label: 'Ferry — Mainland', lat: 45.6455, lng: -84.4744, points: 10, region: 'LP' },
-      { id: 'bois-blanc-island', siteId: 'bois-blanc', siteName: 'Bois Blanc Island', label: 'Ferry — Island', lat: 45.7277, lng: -84.4523, points: 21, region: 'Island', ferryCostRoundTrip: '$72.75' },
+      { id: 'bois-blanc-island', siteId: 'bois-blanc', siteName: 'Bois Blanc Island', label: 'Ferry — Island', lat: 45.7277, lng: -84.4523, points: 21, region: 'Island', ferryCostRoundTrip: '$60' },
     ],
   },
   {
